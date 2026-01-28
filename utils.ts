@@ -2,7 +2,17 @@
 import { CURRENCIES } from "./constants";
 import { Loan, Debt, CalendarEvent } from "./types";
 
-export const generateId = () => Math.random().toString(36).substr(2, 9);
+// Use crypto.randomUUID for Postgres-compatible UUIDs
+export const generateId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
 
 export const safeParse = <T,>(key: string, fallback: T): T => {
   try { return localStorage.getItem(key) ? JSON.parse(localStorage.getItem(key)!) : fallback; } catch (e) { return fallback; }

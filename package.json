@@ -1,5 +1,5 @@
 {
-  "name": "app",
+  "name": "hishabmate",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -12,7 +12,9 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "jspdf": "2.5.1",
-    "jspdf-autotable": "3.5.29"
+    "jspdf-autotable": "3.5.29",
+    "@supabase/supabase-js": "2",
+    "bcryptjs": "2.4.3"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

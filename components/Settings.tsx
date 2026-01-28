@@ -36,6 +36,23 @@ export const SettingsView: React.FC<{
        return IconComp ? <IconComp className={className} /> : <Icons.LayoutGrid className={className} />;
     };
 
+    const validateEmail = (email: string) => {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    };
+
+    const handleSaveProfile = () => {
+        if (!tempProfile.email) {
+            alert("Email cannot be empty");
+            return;
+        }
+        if (!validateEmail(tempProfile.email)) {
+            alert("Please enter a valid email address");
+            return;
+        }
+        setUser(tempProfile); 
+        setSubTab('MAIN');
+    };
+
     if (subTab === 'CATS') {
        return (
          <div className="animate-enter pb-24">
@@ -113,25 +130,27 @@ export const SettingsView: React.FC<{
     }
 
     if (subTab === 'PROFILE') {
-       const inputClass = isLight ? 'bg-white border border-gray-200 text-gray-900' : 'glass-input';
+       const inputClass = isLight ? 'bg-white border border-gray-200 text-gray-900 placeholder-gray-400' : 'glass-input text-white placeholder-white/40';
+       const labelClass = `text-xs mb-1 ml-1 block uppercase tracking-wider font-bold ${isLight ? 'text-gray-500' : 'text-white/50'}`;
+       
        return (
           <div className="animate-enter pb-24">
              <AppHeader title="Edit Profile" onBack={() => setSubTab('MAIN')} isLight={isLight} />
-             <div className="space-y-4">
+             <div className="space-y-5">
                 <div>
-                   <label className="text-xs opacity-50 mb-1 ml-1 block uppercase tracking-wider font-bold">Full Name</label>
-                   <input className={`${inputClass} w-full p-4 rounded-2xl`} value={tempProfile.name} onChange={e => setTempProfile({...tempProfile, name: e.target.value})} placeholder="Name" />
+                   <label className={labelClass}>Full Name</label>
+                   <input className={`${inputClass} w-full p-4 rounded-2xl outline-none`} value={tempProfile.name} onChange={e => setTempProfile({...tempProfile, name: e.target.value})} placeholder="e.g. John Doe" />
                 </div>
                 <div>
-                   <label className="text-xs opacity-50 mb-1 ml-1 block uppercase tracking-wider font-bold">Email Address</label>
-                   <input className={`${inputClass} w-full p-4 rounded-2xl`} value={tempProfile.email} onChange={e => setTempProfile({...tempProfile, email: e.target.value})} placeholder="Email" />
+                   <label className={labelClass}>Email Address</label>
+                   <input className={`${inputClass} w-full p-4 rounded-2xl outline-none`} value={tempProfile.email} onChange={e => setTempProfile({...tempProfile, email: e.target.value})} placeholder="name@example.com" type="email" />
                 </div>
                 <div>
-                   <label className="text-xs opacity-50 mb-1 ml-1 block uppercase tracking-wider font-bold">Phone Number</label>
-                   <input className={`${inputClass} w-full p-4 rounded-2xl`} value={tempProfile.phone} onChange={e => setTempProfile({...tempProfile, phone: e.target.value})} placeholder="Phone" />
+                   <label className={labelClass}>Phone Number</label>
+                   <input className={`${inputClass} w-full p-4 rounded-2xl outline-none`} value={tempProfile.phone} onChange={e => setTempProfile({...tempProfile, phone: e.target.value})} placeholder="+880..." type="tel" />
                 </div>
                 <div>
-                   <label className="text-xs opacity-50 mb-1 ml-1 block uppercase tracking-wider font-bold">Gender</label>
+                   <label className={labelClass}>Gender</label>
                    <div className="flex gap-4">
                        <button 
                            onClick={() => setTempProfile({...tempProfile, gender: 'MALE'})}
@@ -147,7 +166,7 @@ export const SettingsView: React.FC<{
                        </button>
                    </div>
                 </div>
-                <GlassButton variant="accent" className="w-full" onClick={() => { setUser(tempProfile); setSubTab('MAIN'); }}>Save Changes</GlassButton>
+                <GlassButton variant="accent" className="w-full" onClick={handleSaveProfile}>Save Changes</GlassButton>
              </div>
           </div>
        )

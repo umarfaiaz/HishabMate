@@ -82,6 +82,15 @@
     .animate-enter {
       animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
+    
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+    .animate-shake {
+      animation: shake 0.3s ease-in-out;
+    }
   </style>
   <script type="importmap">
 {
@@ -91,7 +100,9 @@
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/",
     "jspdf": "https://esm.sh/jspdf@2.5.1",
-    "jspdf-autotable": "https://esm.sh/jspdf-autotable@3.5.29"
+    "jspdf-autotable": "https://esm.sh/jspdf-autotable@3.5.29",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
+    "bcryptjs": "https://esm.sh/bcryptjs@2.4.3"
   }
 }
 </script>

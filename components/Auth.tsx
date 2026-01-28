@@ -25,16 +25,39 @@ export const RegistrationAndPin: React.FC<{ onAuthenticated: (profile: UserProfi
 
   const vibrate = () => { if (navigator.vibrate) navigator.vibrate(10); };
 
+  const validateEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
   const handleRegister = () => {
-    if (!profileForm.name || !profileForm.email) { setError('Name and Email required'); return; }
+    if (!profileForm.name || !profileForm.email) { 
+        setError('Name and Email required'); 
+        return; 
+    }
+    
+    if (!validateEmail(profileForm.email)) {
+        setError('Invalid email format. Must contain @ and .');
+        return;
+    }
+
     const newProfile: UserProfile = { ...profileForm, currency: 'BDT', language: 'EN', theme: 'DARK' } as UserProfile;
     localStorage.setItem('user_profile', JSON.stringify(newProfile));
     setStep('SETUP_PIN'); setError('');
   };
 
   const handleLoginWithEmail = () => {
-      if (!profileForm.email || pin.length !== 4) {
-          setError("Enter valid email & 4-digit PIN");
+      if (!profileForm.email) {
+          setError("Email is required");
+          vibrate();
+          return;
+      }
+      if (!validateEmail(profileForm.email)) {
+          setError("Invalid email format");
+          vibrate();
+          return;
+      }
+      if (pin.length !== 4) {
+          setError("Enter 4-digit PIN");
           vibrate();
           return;
       }
@@ -94,10 +117,10 @@ export const RegistrationAndPin: React.FC<{ onAuthenticated: (profile: UserProfi
     const checkAuth = () => {
       if (step === 'LOGIN' && pin.length === 4) {
         const savedPin = localStorage.getItem('app_pin');
-        if (pin === savedPin) onAuthenticated(safeParse('user_profile', {}));
+        if (pin === savedPin) onAuthenticated(safeParse('user_profile', { name: '', email: '', phone: '', dob: '', gender: 'MALE', currency: 'BDT', language: 'EN', theme: 'DARK' }));
         else { vibrate(); setError('Incorrect PIN'); setTimeout(() => setPin(''), 500); }
       } else if (step === 'SETUP_PIN' && pin.length === 4 && confirmPin.length === 4) {
-        if (pin === confirmPin) { localStorage.setItem('app_pin', pin); onAuthenticated(safeParse('user_profile', {})); }
+        if (pin === confirmPin) { localStorage.setItem('app_pin', pin); onAuthenticated(safeParse('user_profile', { name: '', email: '', phone: '', dob: '', gender: 'MALE', currency: 'BDT', language: 'EN', theme: 'DARK' })); }
         else { vibrate(); setError('PINs do not match'); setTimeout(() => { setPin(''); setConfirmPin(''); }, 500); }
       }
     };
@@ -127,36 +150,36 @@ export const RegistrationAndPin: React.FC<{ onAuthenticated: (profile: UserProfi
         <div className="min-h-screen flex flex-col items-center justify-center p-6 animate-enter bg-black text-center">
              <div className="w-full max-w-md bg-white/5 border border-white/10 p-8 rounded-[32px] shadow-2xl backdrop-blur-xl">
                  <div className="mb-8">
-                    <h2 className="text-2xl font-bold mb-2">Welcome Back</h2>
+                    <h2 className="text-2xl font-bold mb-2 text-white">Welcome Back</h2>
                     <p className="text-white/40 text-sm">Log in with your credentials</p>
                  </div>
                  
-                 <div className="space-y-4 text-left">
+                 <div className="space-y-5 text-left">
                     <div>
-                       <label className="text-xs font-bold text-white/40 ml-2 uppercase">Email Address</label>
+                       <label className="text-xs font-bold text-white/40 ml-1 uppercase mb-2 block tracking-wider">Email Address</label>
                        <input 
                           type="email" 
                           placeholder="name@example.com" 
-                          className="w-full glass-input p-4 rounded-2xl outline-none transition-all focus:border-blue-500/50" 
+                          className="w-full glass-input p-4 rounded-2xl outline-none transition-all focus:border-blue-500/50 text-white placeholder-white/20" 
                           value={profileForm.email} 
                           onChange={e => setProfileForm({...profileForm, email: e.target.value})} 
                        />
                     </div>
                     <div>
-                       <label className="text-xs font-bold text-white/40 ml-2 uppercase">4-Digit PIN</label>
+                       <label className="text-xs font-bold text-white/40 ml-1 uppercase mb-2 block tracking-wider">4-Digit PIN</label>
                        <input 
                           type="password" 
                           inputMode="numeric" 
                           maxLength={4}
                           placeholder="••••" 
-                          className="w-full glass-input p-4 rounded-2xl outline-none transition-all focus:border-blue-500/50 tracking-[0.5em] text-center font-bold text-xl" 
+                          className="w-full glass-input p-4 rounded-2xl outline-none transition-all focus:border-blue-500/50 tracking-[0.5em] text-center font-bold text-xl text-white placeholder-white/20" 
                           value={pin} 
                           onChange={e => { if(/^\d*$/.test(e.target.value) && e.target.value.length <= 4) setPin(e.target.value); }}
                        />
                     </div>
                  </div>
 
-                 {error && <p className="text-red-400 mt-4 text-sm font-bold bg-red-500/10 py-2 rounded-lg">{error}</p>}
+                 {error && <p className="text-red-400 mt-4 text-sm font-bold bg-red-500/10 py-3 rounded-xl border border-red-500/20">{error}</p>}
                  
                  <GlassButton variant="accent" className="w-full !py-4 text-lg mt-6" onClick={handleLoginWithEmail}>Log In</GlassButton>
                  
@@ -200,14 +223,44 @@ export const RegistrationAndPin: React.FC<{ onAuthenticated: (profile: UserProfi
       <div className="min-h-screen flex items-center justify-center p-6 animate-enter bg-black">
         <div className="w-full max-w-md space-y-8">
           <div className="text-center">
-            <h1 className="text-3xl font-bold mb-2">Create Profile</h1>
+            <h1 className="text-3xl font-bold mb-2 text-white">Create Profile</h1>
             <p className="text-white/40">Let's personalize your experience</p>
           </div>
-          <div className="space-y-4">
-             <input type="text" placeholder="Full Name" className="w-full glass-input p-5 rounded-2xl outline-none text-lg transition-all focus:border-blue-500/50" value={profileForm.name} onChange={e => setProfileForm({...profileForm, name: e.target.value})} />
-             <input type="email" placeholder="Email Address" className="w-full glass-input p-5 rounded-2xl outline-none text-lg transition-all focus:border-blue-500/50" value={profileForm.email} onChange={e => setProfileForm({...profileForm, email: e.target.value})} />
-             <input type="tel" placeholder="Phone (Optional)" className="w-full glass-input p-5 rounded-2xl outline-none text-lg transition-all focus:border-blue-500/50" value={profileForm.phone} onChange={e => setProfileForm({...profileForm, phone: e.target.value})} />
-             {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+          <div className="space-y-5">
+             <div>
+                 <label className="text-xs font-bold text-white/40 ml-1 uppercase mb-2 block tracking-wider">Full Name</label>
+                 <input 
+                    type="text" 
+                    placeholder="e.g. John Doe" 
+                    className="w-full glass-input p-5 rounded-2xl outline-none text-lg transition-all focus:border-blue-500/50 text-white placeholder-white/20" 
+                    value={profileForm.name} 
+                    onChange={e => setProfileForm({...profileForm, name: e.target.value})} 
+                 />
+             </div>
+             
+             <div>
+                 <label className="text-xs font-bold text-white/40 ml-1 uppercase mb-2 block tracking-wider">Email Address</label>
+                 <input 
+                    type="email" 
+                    placeholder="name@example.com" 
+                    className="w-full glass-input p-5 rounded-2xl outline-none text-lg transition-all focus:border-blue-500/50 text-white placeholder-white/20" 
+                    value={profileForm.email} 
+                    onChange={e => setProfileForm({...profileForm, email: e.target.value})} 
+                 />
+             </div>
+             
+             <div>
+                 <label className="text-xs font-bold text-white/40 ml-1 uppercase mb-2 block tracking-wider">Phone (Optional)</label>
+                 <input 
+                    type="tel" 
+                    placeholder="+880..." 
+                    className="w-full glass-input p-5 rounded-2xl outline-none text-lg transition-all focus:border-blue-500/50 text-white placeholder-white/20" 
+                    value={profileForm.phone} 
+                    onChange={e => setProfileForm({...profileForm, phone: e.target.value})} 
+                 />
+             </div>
+             
+             {error && <p className="text-red-400 text-sm text-center font-medium bg-red-500/10 p-3 rounded-xl border border-red-500/20">{error}</p>}
              <GlassButton variant="accent" className="w-full !py-5 text-lg mt-4" onClick={handleRegister}>Continue</GlassButton>
           </div>
         </div>
@@ -219,7 +272,7 @@ export const RegistrationAndPin: React.FC<{ onAuthenticated: (profile: UserProfi
       return (
         <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-black animate-enter text-center">
             <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center text-red-500 mb-6"><Icons.LogOut className="w-8 h-8"/></div>
-            <h2 className="text-2xl font-bold mb-2">Reset App Data?</h2>
+            <h2 className="text-2xl font-bold mb-2 text-white">Reset App Data?</h2>
             <p className="text-white/50 mb-8 max-w-xs">Since we are offline-first, we cannot email you a code. You must reset the app to set a new PIN.</p>
             <div className="flex flex-col gap-3 w-full max-w-xs">
                 <GlassButton variant="danger" onClick={handleForgotPin}>Yes, Reset Everything</GlassButton>
@@ -232,7 +285,7 @@ export const RegistrationAndPin: React.FC<{ onAuthenticated: (profile: UserProfi
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center animate-enter selection:bg-none relative bg-black">
        <div className="mb-12">
-        <h1 className="text-2xl font-bold mb-2 tracking-wide">{step === 'LOGIN' ? `Welcome Back${savedName ? `, ${savedName}` : ''}` : 'Set Passcode'}</h1>
+        <h1 className="text-2xl font-bold mb-2 tracking-wide text-white">{step === 'LOGIN' ? `Welcome Back${savedName ? `, ${savedName}` : ''}` : 'Set Passcode'}</h1>
         <p className="text-white/40 text-sm font-medium uppercase tracking-widest">{step === 'LOGIN' ? 'Enter 4-Digit PIN' : (pin.length === 4 ? 'Confirm PIN' : 'Create PIN')}</p>
       </div>
       

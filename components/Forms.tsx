@@ -420,7 +420,7 @@ export const LoanForm: React.FC<{
   onDelete: (id: string) => void;
   isLight?: boolean;
 }> = ({ editingItem, onSave, onDelete, isLight }) => {
-     const [form, setForm] = useState<Partial<Loan>>(editingItem || { 
+     const [form, setForm] = useState<any>(editingItem || { 
         name: '', 
         provider: '',
         principal: '', 

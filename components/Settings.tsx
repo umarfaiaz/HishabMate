@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient'; // Added Supabase import
+import bcrypt from 'bcryptjs'; // Added bcrypt import
 import { Icons } from '../Icons';
 import { GlassCard, GlassButton, AppHeader } from './UI';
 import { LANGUAGES, CURRENCIES } from '../constants';
@@ -13,9 +15,9 @@ export const SettingsView: React.FC<{
   setAuthState: (state: any) => void;
   generateId: () => string;
   t: (key: any) => string;
-  initialSubTab?: 'MAIN' | 'CATS' | 'PROFILE' | 'CHANGE_PIN';
+  initialSubTab?: 'MAIN' | 'CATS' | 'PROFILE' | 'CHANGE_PIN' | 'CHANGE_PASSWORD';
 }> = ({ user, setUser, categories, setCategories, setAuthState, generateId, t, initialSubTab = 'MAIN' }) => {
-    const [subTab, setSubTab] = useState<'MAIN' | 'CATS' | 'PROFILE' | 'CHANGE_PIN'>(initialSubTab);
+    const [subTab, setSubTab] = useState<'MAIN' | 'CATS' | 'PROFILE' | 'CHANGE_PIN' | 'CHANGE_PASSWORD'>(initialSubTab);
     const [newCat, setNewCat] = useState('');
     const [tempProfile, setTempProfile] = useState(user);
     
@@ -28,6 +30,11 @@ export const SettingsView: React.FC<{
     const [pinInput, setPinInput] = useState('');
     const [newPinTemp, setNewPinTemp] = useState('');
     const [pinError, setPinError] = useState('');
+    const [loadingPin, setLoadingPin] = useState(false);
+
+    // Change Password State
+    const [passForm, setPassForm] = useState({ newPass: '', confirmPass: '' });
+    const [passLoading, setPassLoading] = useState(false);
 
     const isLight = user.theme === 'LIGHT';
 
@@ -40,7 +47,7 @@ export const SettingsView: React.FC<{
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     };
 
-    const handleSaveProfile = () => {
+    const handleSaveProfile = async () => {
         if (!tempProfile.email) {
             alert("Email cannot be empty");
             return;
@@ -49,10 +56,26 @@ export const SettingsView: React.FC<{
             alert("Please enter a valid email address");
             return;
         }
-        setUser(tempProfile); 
-        setSubTab('MAIN');
+        
+        // Update Supabase
+        const { error } = await supabase.from('profiles').update({
+            name: tempProfile.name,
+            phone: tempProfile.phone,
+            gender: tempProfile.gender,
+            currency: tempProfile.currency,
+            language: tempProfile.language,
+            theme: tempProfile.theme
+        }).eq('id', (await supabase.auth.getUser()).data.user?.id);
+
+        if (error) {
+            alert("Error updating profile: " + error.message);
+        } else {
+            setUser(tempProfile); 
+            setSubTab('MAIN');
+        }
     };
 
+    // --- SUB-VIEW: CATEGORIES ---
     if (subTab === 'CATS') {
        return (
          <div className="animate-enter pb-24">
@@ -66,46 +89,123 @@ export const SettingsView: React.FC<{
        )
     }
 
+    // --- SUB-VIEW: CHANGE PASSWORD ---
+    if (subTab === 'CHANGE_PASSWORD') {
+        const handlePasswordUpdate = async () => {
+            if (passForm.newPass.length < 6) return alert("Password must be at least 6 characters");
+            if (passForm.newPass !== passForm.confirmPass) return alert("Passwords do not match");
+            
+            setPassLoading(true);
+            const { error } = await supabase.auth.updateUser({ password: passForm.newPass });
+            setPassLoading(false);
+            
+            if (error) alert("Error: " + error.message);
+            else {
+                alert("Password updated successfully!");
+                setSubTab('MAIN');
+            }
+        };
+
+        return (
+            <div className="animate-enter pb-24">
+                <AppHeader title="Change Password" onBack={() => setSubTab('MAIN')} isLight={isLight} />
+                <div className="space-y-4 pt-4">
+                    <div>
+                        <label className={`text-xs mb-1 ml-1 block uppercase tracking-wider font-bold ${isLight ? 'text-gray-500' : 'text-white/50'}`}>New Password</label>
+                        <input 
+                            type="password" 
+                            className={`w-full p-4 rounded-xl outline-none ${isLight ? 'bg-white border border-gray-200' : 'glass-input'}`} 
+                            value={passForm.newPass} 
+                            onChange={e => setPassForm({...passForm, newPass: e.target.value})} 
+                            placeholder="Min 6 characters"
+                        />
+                    </div>
+                    <div>
+                        <label className={`text-xs mb-1 ml-1 block uppercase tracking-wider font-bold ${isLight ? 'text-gray-500' : 'text-white/50'}`}>Confirm Password</label>
+                        <input 
+                            type="password" 
+                            className={`w-full p-4 rounded-xl outline-none ${isLight ? 'bg-white border border-gray-200' : 'glass-input'}`} 
+                            value={passForm.confirmPass} 
+                            onChange={e => setPassForm({...passForm, confirmPass: e.target.value})} 
+                            placeholder="Re-enter password"
+                        />
+                    </div>
+                    <GlassButton variant="accent" onClick={handlePasswordUpdate} disabled={passLoading} className="w-full">
+                        {passLoading ? 'Updating...' : 'Update Password'}
+                    </GlassButton>
+                </div>
+            </div>
+        );
+    }
+
+    // --- SUB-VIEW: CHANGE PIN ---
     if (subTab === 'CHANGE_PIN') {
         const handlePinDigit = (d: string) => {
+            if (loadingPin) return;
             if (pinInput.length < 4) {
                 const next = pinInput + d;
                 setPinInput(next);
                 
                 if (next.length === 4) {
-                    setTimeout(() => processPin(next), 200);
+                    processPin(next);
                 }
             }
         };
 
-        const processPin = (code: string) => {
+        const processPin = async (code: string) => {
             setPinError('');
-            if (pinStage === 'OLD') {
-                const saved = localStorage.getItem('app_pin');
-                if (code === saved) {
-                    setPinStage('NEW');
-                    setPinInput('');
-                } else {
-                    setPinError('Incorrect PIN');
-                    setTimeout(() => setPinInput(''), 500);
-                }
-            } else if (pinStage === 'NEW') {
-                setNewPinTemp(code);
-                setPinStage('CONFIRM');
-                setPinInput('');
-            } else if (pinStage === 'CONFIRM') {
-                if (code === newPinTemp) {
-                    localStorage.setItem('app_pin', code);
-                    alert("PIN Changed Successfully");
-                    setSubTab('MAIN');
-                } else {
-                    setPinError("PINs do not match");
-                    setTimeout(() => {
+            setLoadingPin(true);
+
+            try {
+                if (pinStage === 'OLD') {
+                    // Fetch hash from DB
+                    const { data, error } = await supabase.from('profiles').select('pin_hash').single();
+                    if (error || !data?.pin_hash) {
+                         setPinError("Error verifying PIN");
+                         setTimeout(() => setPinInput(''), 500);
+                         setLoadingPin(false);
+                         return;
+                    }
+                    
+                    const isValid = await bcrypt.compare(code, data.pin_hash);
+                    if (isValid) {
+                        setPinStage('NEW');
                         setPinInput('');
-                        setPinStage('NEW'); // Restart new pin flow
-                    }, 1000);
+                    } else {
+                        setPinError('Incorrect PIN');
+                        setTimeout(() => setPinInput(''), 500);
+                    }
+                } else if (pinStage === 'NEW') {
+                    setNewPinTemp(code);
+                    setPinStage('CONFIRM');
+                    setPinInput('');
+                } else if (pinStage === 'CONFIRM') {
+                    if (code === newPinTemp) {
+                        // Save new hash to DB
+                        const hash = await bcrypt.hash(code, 10);
+                        const { error: updateError } = await supabase.from('profiles').update({ pin_hash: hash }).eq('id', (await supabase.auth.getUser()).data.user?.id);
+                        
+                        if (updateError) {
+                            setPinError("Failed to save PIN");
+                            setPinInput('');
+                        } else {
+                            alert("PIN Changed Successfully");
+                            setSubTab('MAIN');
+                        }
+                    } else {
+                        setPinError("PINs do not match");
+                        setTimeout(() => {
+                            setPinInput('');
+                            setPinStage('NEW'); // Restart new pin flow
+                        }, 1000);
+                    }
                 }
+            } catch (err) {
+                console.error(err);
+                setPinError("An unexpected error occurred");
+                setPinInput('');
             }
+            setLoadingPin(false);
         };
 
         return (
@@ -118,17 +218,23 @@ export const SettingsView: React.FC<{
                      {[0,1,2,3].map(i => <div key={i} className={`w-4 h-4 rounded-full transition-all ${pinInput.length > i ? 'bg-blue-500' : (isLight ? 'bg-gray-300' : 'bg-white/20')}`}></div>)}
                  </div>
                  {pinError && <p className="text-red-500 font-bold mb-4">{pinError}</p>}
+                 {loadingPin && <div className="mb-4 text-blue-500 text-sm font-bold animate-pulse">Verifying...</div>}
                  
-                 <div className="grid grid-cols-3 gap-6 w-full max-w-xs">
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => <button key={num} onClick={() => handlePinDigit(num.toString())} className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold ${isLight ? 'bg-white shadow border border-gray-100' : 'bg-white/10 active:bg-white/20'}`}>{num}</button>)}
+                 <div className="grid grid-cols-3 gap-6 w-full max-w-xs select-none">
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
+                        <button key={num} onClick={() => handlePinDigit(num.toString())} className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold active:scale-95 transition-all ${isLight ? 'bg-white shadow border border-gray-100' : 'bg-white/10 active:bg-white/20'}`}>
+                            {num}
+                        </button>
+                    ))}
                     <div/>
-                    <button onClick={() => handlePinDigit('0')} className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold ${isLight ? 'bg-white shadow border border-gray-100' : 'bg-white/10 active:bg-white/20'}`}>0</button>
-                    <button onClick={() => setPinInput(p => p.slice(0, -1))} className="w-20 h-20 flex items-center justify-center"><Icons.ArrowLeft className="w-6 h-6"/></button>
+                    <button onClick={() => handlePinDigit('0')} className={`w-20 h-20 rounded-full flex items-center justify-center text-2xl font-bold active:scale-95 transition-all ${isLight ? 'bg-white shadow border border-gray-100' : 'bg-white/10 active:bg-white/20'}`}>0</button>
+                    <button onClick={() => setPinInput(p => p.slice(0, -1))} className="w-20 h-20 flex items-center justify-center text-red-400"><Icons.ArrowLeft className="w-6 h-6"/></button>
                  </div>
             </div>
         )
     }
 
+    // --- SUB-VIEW: EDIT PROFILE ---
     if (subTab === 'PROFILE') {
        const inputClass = isLight ? 'bg-white border border-gray-200 text-gray-900 placeholder-gray-400' : 'glass-input text-white placeholder-white/40';
        const labelClass = `text-xs mb-1 ml-1 block uppercase tracking-wider font-bold ${isLight ? 'text-gray-500' : 'text-white/50'}`;
@@ -172,6 +278,7 @@ export const SettingsView: React.FC<{
        )
     }
 
+    // --- MAIN VIEW ---
     const currencySymbol = CURRENCIES[user.currency as keyof typeof CURRENCIES]?.symbol || '$';
 
     return (
@@ -189,7 +296,7 @@ export const SettingsView: React.FC<{
         </div>
         
         <div className="space-y-4">
-           {/* Theme Toggle */}
+           {/* Appearance & Locale */}
            <GlassCard isLight={isLight} className="!p-4 flex justify-between items-center">
                <div className="flex items-center gap-3">
                    {user.theme === 'LIGHT' ? <Icons.Sun className="w-6 h-6 text-yellow-500"/> : <Icons.Moon className="w-6 h-6 text-blue-300"/>}
@@ -213,7 +320,7 @@ export const SettingsView: React.FC<{
               </select>
            </GlassCard>
            
-           {/* Enhanced Cards for Manage and Pin */}
+           {/* Account Actions */}
            <GlassCard isLight={isLight} onClick={() => setSubTab('CATS')} className="!p-4 flex justify-between items-center cursor-pointer active:scale-[0.99] transition-transform">
                <div className="flex items-center gap-3">
                    <div className={`w-6 h-6 rounded-full flex items-center justify-center ${isLight ? 'bg-purple-100' : 'bg-purple-500/20'}`}>
@@ -230,6 +337,16 @@ export const SettingsView: React.FC<{
                         <Icons.Lock className="w-4 h-4 text-orange-500" />
                    </div>
                    <span>Change App PIN</span>
+               </div>
+               <Icons.ChevronRight className="w-4 h-4 opacity-30"/>
+           </GlassCard>
+
+           <GlassCard isLight={isLight} onClick={() => setSubTab('CHANGE_PASSWORD')} className="!p-4 flex justify-between items-center cursor-pointer active:scale-[0.99] transition-transform">
+               <div className="flex items-center gap-3">
+                   <div className={`w-6 h-6 rounded-full flex items-center justify-center ${isLight ? 'bg-emerald-100' : 'bg-emerald-500/20'}`}>
+                        <Icons.Lock className="w-4 h-4 text-emerald-500" />
+                   </div>
+                   <span>Change Password</span>
                </div>
                <Icons.ChevronRight className="w-4 h-4 opacity-30"/>
            </GlassCard>
